@@ -1,0 +1,80 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - internal
+
+  kafka:
+    image: bitnami/kafka:3.6.1
+    container_name: mq
+    restart: always
+    ports:
+      - "${KAFKA_EXTERNAL_PORT:-9092}:9092"
+      - "${KAFKA_INTERNAL_PORT:-29092}:29092"
+      - "${KAFKA_CONTROLLER_PORT:-9093}:9093"
+    environment:
+      KAFKA_ENABLE_KRAFT: "yes"
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@mq:${KAFKA_CONTROLLER_PORT:-9093}"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://0.0.0.0:${KAFKA_INTERNAL_PORT:-29092},PLAINTEXT_HOST://0.0.0.0:${KAFKA_EXTERNAL_PORT:-9092},CONTROLLER://0.0.0.0:${KAFKA_CONTROLLER_PORT:-9093}"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://mq:${KAFKA_INTERNAL_PORT:-29092},PLAINTEXT_HOST://localhost:${KAFKA_EXTERNAL_PORT:-9092}"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - internal
+    volumes:
+      - kafka_data:/bitnami/mq
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka_ui
+    restart: always
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "local"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "mq:${KAFKA_INTERNAL_PORT:-29092}"
+    depends_on:
+      - kafka
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - internal
+    volumes:
+      - redis_data:/data
+
+  redis-ui:
+    image: redis/redisinsight:latest
+    container_name: redis_ui
+    restart: always
+    ports:
+      - "8002:5540"
+    depends_on:
+      - redis
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  kafka_data:
+  redis_data:

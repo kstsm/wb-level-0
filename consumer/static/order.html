@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Order Lookup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #2f3640;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .search-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 12px 15px;
+            font-size: 16px;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 12px;
+            border: 1px solid #dcdde1;
+            margin-right: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            font-family: 'Arial', sans-serif;
+            background-color: #a73afd;
+            color: white;
+            border-radius: 12px;
+            font-weight: 650;
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+        button:hover {
+            background-color: #8e2adf;
+        }
+        pre {
+            background: #dfe6e9;
+            padding: 15px;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 600px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Поиск заказа по Order UID</h1>
+
+    <div class="search-container">
+        <input type="text" id="orderID" placeholder="Введите Order UID">
+        <button id="fetchBtn">Получить заказ</button>
+    </div>
+
+    <pre id="result" style="display: none;"></pre>
+</div>
+
+<script>
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    document.getElementById("fetchBtn").addEventListener("click", async () => {
+        const orderID = document.getElementById("orderID").value.trim();
+        const resultEl = document.getElementById("result");
+        resultEl.style.display = "none";
+        resultEl.textContent = "";
+
+        if (!orderID) {
+            resultEl.style.display = "block";
+            resultEl.innerHTML = `<span class="error">Ошибка 400: введите Order UID</span>`;
+            return;
+        }
+        if (!uuidRegex.test(orderID)) {
+            resultEl.style.display = "block";
+            resultEl.innerHTML = `<span class="error">Ошибка 400: неверный формат UUID</span>`;
+            return;
+        }
+
+        try {
+            const response = await fetch(`/order/${orderID}`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw {
+                    status: response.status,
+                    message: errorData.Error
+                };
+            }
+
+            const data = await response.json();
+            resultEl.style.display = "block";
+            resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+            resultEl.style.display = "block";
+            const status = err.status || 500;
+            const message = err.message || "Внутренняя ошибка сервера";
+            resultEl.innerHTML = `<span class="error">Ошибка ${status}: ${message}</span>`;
+        }
+    });
+</script>
+</body>
+</html>
